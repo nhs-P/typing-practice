@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中文輸入法練習</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .text-display {
+            line-height: 2.2;
+            letter-spacing: 0.25em;
+            user-select: none;
+        }
+        .char-correct { color: #10b981; }
+        .char-incorrect { color: #ef4444; background-color: #fee2e2; }
+        .char-current { border-bottom: 3px solid #3b82f6; }
+        #screenshot-area {
+            background: white;
+            border-radius: 1rem;
+        }
+        .category-tag {
+            font-size: 0.75rem;
+            padding: 2px 10px;
+            border-radius: 999px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- 登入與認證畫面 -->
+    <div id="login-screen" class="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+        <div class="text-center mb-8">
+			<center><img src="https://yotcwsf.edu.hk/download/Resource/BGImage/schoolLogo005.png"></center>
+            <h1 class="text-2xl font-bold text-gray-800">普通電腦科</h1>
+			<h1 class="text-2x1 font-bold text-gray-800">中文輸入法練習</h1>
+            <p class="text-gray-500 text-sm mt-1">請選擇班別及姓名以開始練習</p>
+        </div>
+
+        <div class="space-y-5">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">1. 選擇班別</label>
+                <select id="login-class" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">-- 請選擇班別 --</option>
+                    <option value="1A">1A</option>
+                    <option value="1B">1B</option>
+                    <option value="1C">1C</option>
+                    <option value="1D">1D</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">2. 選擇姓名 (班號)</label>
+                <select id="login-student" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" disabled>
+                    <option value="">-- 請先選擇班別 --</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">3. 輸入學生編號 (認證)</label>
+                <input type="password" id="login-id" placeholder="請輸入學生編號 (如: a25...)" 
+                    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+
+            <button id="btn-login" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg transform active:scale-95">
+                進入練習
+            </button>
+            <p id="login-error" class="text-red-500 text-center text-sm font-bold hidden">❌ 驗證失敗：編號不正確</p>
+        </div>
+    </div>
+
+    <!-- 遊戲主畫面 (初始隱藏) -->
+    <div id="game-screen" class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 hidden">
+        <div class="bg-indigo-700 p-4 text-white flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold">中文輸入法練習</h1>
+                <p id="user-display" class="text-xs opacity-80">學生：未登入</p>
+            </div>
+            <button onclick="location.reload()" class="text-xs bg-indigo-600 px-3 py-1 rounded hover:bg-indigo-500">登出</button>
+        </div>
+
+        <!-- 練習設定與統計 -->
+        <div class="p-4 bg-gray-50 border-b">
+            <label class="text-xs font-bold text-gray-500 uppercase">練習類別</label>
+            <select id="article-select" class="w-full p-2 rounded border border-gray-300 text-sm outline-none bg-white"></select>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 p-4 bg-indigo-50 border-b border-indigo-100 text-xs font-bold">
+            <div class="flex flex-col items-center p-2 bg-white rounded shadow-sm">
+                <span class="text-gray-400">總字數</span>
+                <span id="stats-total" class="text-indigo-600 text-lg">0</span>
+            </div>
+            <div class="flex flex-col items-center p-2 bg-white rounded shadow-sm">
+                <span class="text-gray-400">正確數</span>
+                <span id="stats-correct" class="text-green-600 text-lg">0</span>
+            </div>
+            <div class="flex flex-col items-center p-2 bg-white rounded shadow-sm">
+                <span class="text-gray-400">正確率</span>
+                <span id="stats-accuracy" class="text-orange-600 text-lg">0%</span>
+            </div>
+            <div class="flex flex-col items-center p-2 bg-white rounded shadow-sm">
+                <span class="text-gray-400">耗時</span>
+                <span id="stats-time" class="text-blue-600 text-lg">0s</span>
+            </div>
+            <div class="flex flex-col items-center p-2 bg-white rounded shadow-sm">
+                <span class="text-gray-400">速率(CPM)</span>
+                <span id="stats-wpm" class="text-purple-600 text-lg">0</span>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div id="category-display" class="category-tag bg-indigo-600 text-white font-bold">類別</div>
+            <div id="text-container" class="text-display text-2xl mb-6 p-6 bg-white rounded-xl border border-gray-200 min-h-[160px] font-medium text-gray-800 shadow-sm"></div>
+            <textarea id="input-box" class="w-full p-4 text-xl border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:outline-none disabled:bg-gray-100 h-36 resize-none shadow-inner" placeholder="請點擊開始練習..." disabled></textarea>
+            <div class="mt-6 flex justify-center gap-4">
+                <button id="btn-start" class="px-12 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-full shadow-lg transform active:scale-95">開始練習</button>
+                <button id="btn-stop" class="px-12 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-full shadow-lg hidden">結束結算</button>
+            </div>
+        </div>
+
+        <!-- 結算報告 -->
+        <div id="result-overlay" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50 backdrop-blur-md">
+            <div id="screenshot-area" class="bg-white p-8 rounded-3xl max-w-md w-full text-center shadow-2xl border-4 border-indigo-200">
+                <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-2"><span class="text-3xl">🏅</span></div>
+                <h2 class="text-xl font-black text-indigo-900">中文輸入法練習成果</h2>
+                <div id="result-user-info" class="my-4 p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm"></div>
+                <div id="result-content" class="text-left space-y-3 mb-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100"></div>
+                <div class="space-y-3">
+                    <button id="btn-screenshot" class="w-full py-4 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 shadow-lg flex items-center justify-center gap-2">儲存成績單圖片</button>
+                    <button onclick="resetGame()" class="w-full py-3 bg-gray-200 text-gray-700 font-bold rounded-xl">再練一次</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 解密函式：將加密字串還原為正確的學生編號以供比對
+        function decodeId(encoded) {
+            const map = {'k':'a', 'a':'0', 'b':'1', 'c':'2', 'd':'3', 'e':'4', 'f':'5', 'g':'6', 'h':'7', 'i':'8', 'j':'9'};
+            return encoded.split('').map(char => map[char] || char).join('');
+        }
+
+        // 加密後的學生名單 (防止在原始碼直接暴露學生編號)
+        const rawStudentData = [
+            // 1A
+            {c:"1A", n:"1", name:"王萱", id:"kcfaab"},
+            {c:"1A", n:"2", name:"趙紫喬", id:"kcfabf"},
+            {c:"1A", n:"3", name:"馮雨晴", id:"kcfacb"},
+            {c:"1A", n:"4", name:"許恩嵐", id:"kcfach"},
+            {c:"1A", n:"5", name:"林曉月", id:"kcfadd"},
+            {c:"1A", n:"6", name:"林芷樂", id:"kcfadf"},
+            {c:"1A", n:"7", name:"林雪瑤", id:"kcfaff"},
+            {c:"1A", n:"8", name:"林怡欣", id:"kcfafg"},
+            {c:"1A", n:"9", name:"吳瑾萱", id:"kcfagh"},
+            {c:"1A", n:"10", name:"柯晴", id:"kcfagi"},
+            {c:"1A", n:"11", name:"曾鎧淇", id:"kcfiab"},
+            {c:"1A", n:"12", name:"謝潔榆", id:"kcfiad"},
+            {c:"1A", n:"13", name:"尹瀖萮", id:"kcfiah"},
+            {c:"1A", n:"14", name:"黃以錡", id:"kcfjah"},
+            {c:"1A", n:"15", name:"楊卓琳", id:"kcfbad"},
+            {c:"1A", n:"16", name:"楊雅媛", id:"kcfbae"},
+            {c:"1A", n:"17", name:"楊諾晴", id:"kcfbag"},
+            {c:"1A", n:"18", name:"蔡俊熙", id:"kcfaac"},
+            {c:"1A", n:"19", name:"陳羿夆", id:"kcfaae"},
+            {c:"1A", n:"20", name:"左嘉晉", id:"kcfabg"},
+            {c:"1A", n:"21", name:"付梓霖", id:"kcfaca"},
+            {c:"1A", n:"22", name:"何昊斌", id:"kcfacc"},
+            {c:"1A", n:"23", name:"江岸", id:"kcfaci"},
+            {c:"1A", n:"24", name:"黎柏麟", id:"kcfadc"},
+            {c:"1A", n:"25", name:"劉思源", id:"kcfadj"},
+            {c:"1A", n:"26", name:"李柏軒", id:"kcfafe"},
+            {c:"1A", n:"27", name:"呂卓謙", id:"kcfaga"},
+            {c:"1A", n:"28", name:"繆天朗", id:"kcfage"},
+            {c:"1A", n:"29", name:"沈子軒", id:"kcfhab"},
+            {c:"1A", n:"30", name:"曾曉航", id:"kcfiaa"},
+            {c:"1A", n:"31", name:"黃宇康", id:"kcfbbi"},
+            {c:"1A", n:"32", name:"胡梓皓", id:"kcfajj"},
+            {c:"1A", n:"33", name:"楊啓政", id:"kcfbaf"},
+            {c:"1A", n:"34", name:"鄭昊琰", id:"kcfbbc"},
+            {c:"1A", n:"35", name:"李鈞皓", id:"kcfafa"},
+            // 1B
+            {c:"1B", n:"1", name:"陳敏兒", id:"kcfaah"},
+            {c:"1B", n:"2", name:"黃思雨", id:"kcface"},
+            {c:"1B", n:"3", name:"姜芝玲", id:"kcfbbf"},
+            {c:"1B", n:"4", name:"郭彥妤", id:"kcfada"},
+            {c:"1B", n:"5", name:"李梓菁", id:"kcfaef"},
+            {c:"1B", n:"6", name:"梁佩珊", id:"kcfaeh"},
+            {c:"1B", n:"7", name:"勞希妍", id:"kcfafj"},
+            {c:"1B", n:"8", name:"蘇心悠", id:"kcfahd"},
+            {c:"1B", n:"9", name:"孫婉婷", id:"kcfahe"},
+            {c:"1B", n:"10", name:"唐子晴", id:"kcfahi"},
+            {c:"1B", n:"11", name:"田欣", id:"kcfbbj"},
+            {c:"1B", n:"12", name:"謝靖澄", id:"kcfiac"},
+            {c:"1B", n:"13", name:"韋詠熙", id:"kcfiag"},
+            {c:"1B", n:"14", name:"黃雅頌", id:"kcfajf"},
+            {c:"1B", n:"15", name:"陳靖民", id:"kcfaad"},
+            {c:"1B", n:"16", name:"陳彦愷", id:"kcfaag"},
+            {c:"1B", n:"17", name:"陳宜德", id:"kcfaai"},
+            {c:"1B", n:"18", name:"張正昊", id:"kcfabb"},
+            {c:"1B", n:"19", name:"杜嘉禧", id:"kcfabj"},
+            {c:"1B", n:"20", name:"古智森", id:"kcfbbg"},
+            {c:"1B", n:"21", name:"梁永樂", id:"kcfaei"},
+            {c:"1B", n:"22", name:"呂澤楷", id:"kcfagb"},
+            {c:"1B", n:"23", name:"麥志誠", id:"kcfagc"},
+            {c:"1B", n:"24", name:"潘宥安", id:"kcfaha"},
+            {c:"1B", n:"25", name:"譚澤聰", id:"kcfahg"},
+            {c:"1B", n:"26", name:"温學耀", id:"kcfiaf"},
+            {c:"1B", n:"27", name:"黃致君", id:"kcfiai"},
+            {c:"1B", n:"28", name:"王瑋鍵", id:"kcfajg"},
+            {c:"1B", n:"29", name:"顏梓洋", id:"kcfbac"},
+            {c:"1B", n:"30", name:"嚴樂熙", id:"kcfbai"},
+            {c:"1B", n:"31", name:"嚴永騰", id:"kcfbaj"},
+            {c:"1B", n:"32", name:"張俊熙", id:"kcfbbb"},
+            {c:"1B", n:"33", name:"宋雍涵", id:"kcfbdi"},
+            // 1C
+            {c:"1C", n:"1", name:"鄭浠嵐", id:"kcfaaj"},
+            {c:"1C", n:"2", name:"黎靖柔", id:"kceagj"},
+            {c:"1C", n:"3", name:"劉純君", id:"kceabg"},
+            {c:"1C", n:"4", name:"劉楒欣", id:"kcfadi"},
+            {c:"1C", n:"5", name:"李依桐", id:"kcdafi"},
+            {c:"1C", n:"6", name:"李希琳", id:"kcfaej"},
+            {c:"1C", n:"7", name:"吳千頴", id:"kcfagg"},
+            {c:"1C", n:"8", name:"鄧焱文", id:"kcfahh"},
+            {c:"1C", n:"9", name:"張恩霈", id:"kcfbba"},
+            {c:"1C", n:"10", name:"張仲朗", id:"kcfaba"},
+            {c:"1C", n:"11", name:"鍾錫禧", id:"kcfabi"},
+            {c:"1C", n:"12", name:"許庭僖", id:"kcfacg"},
+            {c:"1C", n:"13", name:"賴嘉烽", id:"kcfadb"},
+            {c:"1C", n:"14", name:"林柏宇", id:"kcfade"},
+            {c:"1C", n:"15", name:"羅浩然", id:"kcfaec"},
+            {c:"1C", n:"16", name:"李孔賢", id:"kcfaee"},
+            {c:"1C", n:"17", name:"梁智藍", id:"kcfaeg"},
+            {c:"1C", n:"18", name:"梁凱熙", id:"kceaid"},
+            {c:"1C", n:"20", name:"譚梓熙", id:"kcfbbe"},
+            {c:"1C", n:"21", name:"曾彩軒", id:"kcfahj"},
+            {c:"1C", n:"22", name:"尹曉鵬", id:"kcfiae"},
+            {c:"1C", n:"23", name:"黃顥琛", id:"kcfaja"},
+            {c:"1C", n:"24", name:"黃鈞柏", id:"kcfaje"},
+            {c:"1C", n:"25", name:"許治穎", id:"kcfbab"},
+            {c:"1C", n:"26", name:"葉善鍇", id:"kcfbbh"},
+            // 1D
+            {c:"1D", n:"1", name:"陳芯蔚", id:"kcfaaf"},
+            {c:"1D", n:"2", name:"何芷瑩", id:"kceagd"},
+            {c:"1D", n:"3", name:"何宛芯", id:"kcfacd"},
+            {c:"1D", n:"4", name:"林韻妍", id:"kcfadg"},
+            {c:"1D", n:"5", name:"劉曉楠", id:"kcfadh"},
+            {c:"1D", n:"6", name:"羅翠愉", id:"kcfaeb"},
+            {c:"1D", n:"7", name:"李思誼", id:"kcfafd"},
+            {c:"1D", n:"8", name:"林宛盈", id:"kcfafh"},
+            {c:"1D", n:"9", name:"黃熙琳", id:"kcfiaj"},
+            {c:"1D", n:"10", name:"黃浩頤", id:"kcfajb"},
+            {c:"1D", n:"11", name:"黃凱穎", id:"kcfajc"},
+            {c:"1D", n:"12", name:"黃涴詩", id:"kcfaji"},
+            {c:"1D", n:"13", name:"蕭凱琳", id:"kcfbaa"},
+            {c:"1D", n:"14", name:"張逸喬", id:"kcfabc"},
+            {c:"1D", n:"15", name:"張蕣顯", id:"kcfabe"},
+            {c:"1D", n:"16", name:"何樂晞", id:"kceagc"},
+            {c:"1D", n:"17", name:"郭名軒", id:"kcfacj"},
+            {c:"1D", n:"18", name:"劉旭軒", id:"kcfaea"},
+            {c:"1D", n:"19", name:"李仕良", id:"kcfafb"},
+            {c:"1D", n:"20", name:"李仕賢", id:"kcfafc"},
+            {c:"1D", n:"21", name:"麥鈞皓", id:"kcfagd"},
+            {c:"1D", n:"22", name:"吳焯瑜", id:"kcfagf"},
+            {c:"1D", n:"23", name:"吳政煒", id:"kceajc"},
+            {c:"1D", n:"24", name:"吳宇軒", id:"kceaje"},
+            {c:"1D", n:"25", name:"冼筠堯", id:"kcfahc"},
+            {c:"1D", n:"26", name:"楊逸朗", id:"kcfbah"}
+        ];
+
+        const articleDatabase = [
+            { category: "練習 (初級)", items: [{ title: "1. 哲理類 (日、月、金、木、水、火、土)", content: "日曰晶月明朋金鑫鈤鈅木杳采水沐淋滑淦沝火炎焱肖杰土肚釷杜灶圭晴題閑最照旺" },
+            { title: "2. 筆劃類 (竹、戈、十、大、中、一、弓)", content: "竹戈十大中一弓鬼麼廣士庫大爻丈天史吏笁士左丁夕宆又引犬太夭在串二三" }] }
+        ];
+
+        let currentUser = null;
+        let isPlaying = false;
+        let startTime = 0;
+        let timer = null;
+        let currentText = "";
+
+        // UI 初始化
+        const classSelect = document.getElementById('login-class');
+        const studentSelect = document.getElementById('login-student');
+        const idInput = document.getElementById('login-id');
+        const loginBtn = document.getElementById('btn-login');
+
+        // 當班別改變時，更新學生清單
+        classSelect.addEventListener('change', () => {
+            const selectedClass = classSelect.value;
+            studentSelect.innerHTML = '<option value="">-- 選擇姓名 (班號) --</option>';
+            
+            if (!selectedClass) {
+                studentSelect.disabled = true;
+                return;
+            }
+
+            const filtered = rawStudentData.filter(s => s.c === selectedClass);
+            // 按班號排序
+            filtered.sort((a, b) => parseInt(a.n) - parseInt(b.n));
+
+            filtered.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id; // 這裡綁定的是加密字串
+                opt.textContent = `${s.n} 號 - ${s.name}`;
+                studentSelect.appendChild(opt);
+            });
+            studentSelect.disabled = false;
+        });
+
+        // 登入驗證
+        loginBtn.addEventListener('click', () => {
+            const selectedId = studentSelect.value;
+            const inputId = idInput.value.trim().toLowerCase();
+
+            if (!selectedId || !inputId) {
+                alert("請完整選擇資訊並輸入學生編號");
+                return;
+            }
+
+            // 尋找選中的學生
+            const student = rawStudentData.find(s => s.id === selectedId);
+
+            // 驗證機制：將選中的學生的加密編號解密，然後比對使用者的輸入
+            if (student && inputId === decodeId(student.id)) {
+                currentUser = student;
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+                document.getElementById('user-display').textContent = `學生：${student.c} (${student.n}) ${student.name}`;
+                initGame();
+            } else {
+                const err = document.getElementById('login-error');
+                err.classList.remove('hidden');
+                setTimeout(() => err.classList.add('hidden'), 3000);
+            }
+        });
+
+        function initGame() {
+            const select = document.getElementById('article-select');
+            select.innerHTML = "";
+            articleDatabase.forEach((cat, ci) => {
+                const g = document.createElement('optgroup');
+                g.label = cat.category;
+                cat.items.forEach((it, ii) => {
+                    const o = document.createElement('option');
+                    o.value = `${ci}-${ii}`; o.textContent = it.title;
+                    g.appendChild(o);
+                });
+                select.appendChild(g);
+            });
+            select.onchange = updateArticle;
+            updateArticle();
+        }
+
+        function updateArticle() {
+            if (isPlaying) return;
+            const [ci, ii] = document.getElementById('article-select').value.split('-').map(Number);
+            currentText = articleDatabase[ci].items[ii].content;
+            document.getElementById('category-display').textContent = articleDatabase[ci].category;
+            document.getElementById('text-container').innerHTML = currentText.split('').map(c => `<span>${c}</span>`).join('');
+            document.getElementById('stats-total').innerText = currentText.length;
+        }
+
+        function startGame() {
+            isPlaying = true;
+            document.getElementById('article-select').disabled = true;
+            const inputBox = document.getElementById('input-box');
+            inputBox.disabled = false;
+            inputBox.value = "";
+            inputBox.focus();
+            startTime = Date.now();
+            timer = setInterval(updateStats, 500);
+            document.getElementById('btn-start').classList.add('hidden');
+            document.getElementById('btn-stop').classList.remove('hidden');
+        }
+
+        function updateStats() {
+            const typed = document.getElementById('input-box').value;
+            const spans = document.getElementById('text-container').querySelectorAll('span');
+            let correct = 0;
+            spans.forEach((s, i) => {
+                const char = typed[i];
+                if (char == null) s.className = "";
+                else if (char === s.innerText) { s.className = "char-correct"; correct++; }
+                else s.className = "char-incorrect";
+                if (i === typed.length) s.classList.add('char-current');
+            });
+            const acc = typed.length > 0 ? Math.round((correct / typed.length) * 100) : 0;
+            const sec = Math.floor((Date.now() - startTime) / 1000);
+            const cpm = sec > 0 ? Math.round((correct / sec) * 60) : 0;
+            document.getElementById('stats-correct').innerText = correct;
+            document.getElementById('stats-accuracy').innerText = acc + "%";
+            document.getElementById('stats-time').innerText = sec + "s";
+            document.getElementById('stats-wpm').innerText = cpm;
+            return { correct, acc, sec, cpm };
+        }
+
+        function stopGame() {
+            clearInterval(timer);
+            isPlaying = false;
+            document.getElementById('input-box').disabled = true;
+            const s = updateStats();
+            document.getElementById('result-user-info').innerHTML = `
+                <div class="font-bold text-indigo-700">學生：${currentUser.c} (${currentUser.n}) ${currentUser.name}</div>
+            `;
+            document.getElementById('result-content').innerHTML = `
+                <div class="flex justify-between"><span>耗時：</span><span class="font-bold">${s.sec} 秒</span></div>
+                <div class="flex justify-between"><span>正確字數：</span><span class="font-bold text-green-600">${s.correct} / ${currentText.length}</span></div>
+                <div class="flex justify-between"><span>準確度：</span><span class="font-bold text-orange-600">${s.acc}%</span></div>
+                <div class="flex justify-between"><span>打字速率：</span><span class="font-bold text-purple-600">${s.cpm} CPM</span></div>
+            `;
+            document.getElementById('result-overlay').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            document.getElementById('result-overlay').classList.add('hidden');
+            document.getElementById('btn-start').classList.remove('hidden');
+            document.getElementById('btn-stop').classList.add('hidden');
+            document.getElementById('article-select').disabled = false;
+            updateArticle();
+        }
+
+        document.getElementById('btn-screenshot').addEventListener('click', () => {
+            const area = document.getElementById('screenshot-area');
+            const btns = area.querySelectorAll('button');
+            btns.forEach(b => b.style.display = 'none');
+            html2canvas(area, { scale: 2 }).then(canvas => {
+                btns.forEach(b => b.style.display = 'block');
+                const a = document.createElement('a');
+                a.download = `成績單_${currentUser.c}_${currentUser.name}.png`;
+                a.href = canvas.toDataURL();
+                a.click();
+            });
+        });
+
+        document.getElementById('btn-start').onclick = startGame;
+        document.getElementById('btn-stop').onclick = stopGame;
+        document.getElementById('input-box').oninput = updateStats;
+    </script>
+	    <!-- 頁底版權資訊 -->
+    <footer class="mt-8 py-6 text-center text-gray-400 text-xs border-t border-gray-200 w-full">
+        <p>&copy; 2026 譚志基老師 - 僅供教學用途</p>
+    </footer>
+</body>
+</html>
